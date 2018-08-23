@@ -38,7 +38,7 @@ If you want to train the model with viewpoint prediction
     # N is your checkpoint iteration
     $ python3 train.py --case 1 --center --lr 0.00001 -no N
     
-If you want to fine-tune model No. 0
+If you want to fine-tune model
 
     # N is your checkpoint iteration
     $ python3 train.py --case 2 --center --lr 0.00001 --pretrained N
