@@ -1,3 +1,9 @@
+# encoding: utf-8
+'''
+#author: Yongbo Jiang
+#contact: cabinfeveroier@gmail.com
+'''
+
 import tensorflow as tf
 import numpy as np
 import math
@@ -18,9 +24,8 @@ VIEW_NUM = config.VIEW_NUM
 
 class Network(object):
     def __init__(self, case):
-        if case != '3' and case != '4' and case != '6':
-            self.vcand = np.load('vcand_case' + '2' + '.npy')
-        # self.vcand = np.array([[0,1],[1,0]])
+        if case == '1':
+            self.vcand = np.load('vcand_case2.npy')
 
     def get_inputs(self):
         inputs = []
@@ -135,6 +140,8 @@ class Network(object):
                 net = slim.max_pool2d(net, [2, 2], scope='pool3')
                 net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],
                                   scope='conv4')
+
+                tf.add_to_collection('conv1', net)
                 net = slim.max_pool2d(net, [2, 2], scope='pool4')
                 net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],
                                   scope='conv5')
@@ -184,6 +191,7 @@ class Network(object):
     def get_tarin_collection(self):
         ret = dict()
         ret['output_softmax'] = tf.add_n(tf.get_collection('output_softmax'))
+        ret['conv1'] = tf.add_n(tf.get_collection('conv1'))
         return ret
 
     def get_test_colllection(self):
@@ -235,7 +243,7 @@ class Network(object):
             ret.append(np.argmax(s) % CLASS_NUM)
         return np.array(ret)
 
-    def get_max_pred_case3(self, scoress):
+    def get_max_pred_aligned(self, scoress):
         scores = scoress.copy()
         scores = np.reshape(scores, [-1, VIEW_NUM, VIEW_NUM * (CLASS_NUM + 1)])
         ret = []
@@ -288,8 +296,7 @@ def test_load_param():
         sess = tf.Session()
         init = tf.global_variables_initializer()
         sess.run(init)
-        load_vgg16_to_rotationnet(sess,
-                                  '/unsullied/sharefs/jiangyongbo/data/checkpoint/tensorflow/vgg/vgg_16.ckpt')
+        load_vgg16_to_rotationnet(sess, config.VGG_CHECKPOINT_PATH)
         res, end_point = sess.run([pred, out])
         print(
             res, end_point['net_output'],

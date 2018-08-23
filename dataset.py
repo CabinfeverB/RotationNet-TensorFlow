@@ -28,25 +28,14 @@ class MultiViewDataset():
             all_views = [d for d in os.listdir(os.path.join(data_dir, label, data_type))]
             all_views.sort()
             views = []
-            if config.ALL_VIEW == True:
-                for item in all_views:
-                    if item[-3:] != 'off':
-                        views.append(os.path.join(label, data_type, item))
-                        cnt += 1
-                        if cnt % VIEW_NUM == 0:
-                            self.x.append(views)
-                            self.y.append(self.class_to_idx[label])
-                            views = []
-            else:
-                for item in all_views:
-                    if item[-3:] != 'off':
-                        if cnt % 4 == 0:
-                            views.append(os.path.join(label, data_type, item))
-                        cnt += 1
-                        if cnt % (VIEW_NUM*4) == 0:
-                            self.x.append(views)
-                            self.y.append(self.class_to_idx[label])
-                            views = []
+            for item in all_views:
+                if item[-3:] != 'off':
+                    views.append(os.path.join(label, data_type, item))
+                    cnt += 1
+                    if cnt % VIEW_NUM == 0:
+                        self.x.append(views)
+                        self.y.append(self.class_to_idx[label])
+                        views = []
 
         self.x = np.array(self.x)
         self.y = np.array(self.y)
@@ -85,7 +74,6 @@ class MultiViewDataset():
         return np.array(views), np.array(labels), self.y[indexx]
 
     def get_batches(self, indexx):
-        batch_num = indexx.shape[0]
         ret_x = []
         ret_y = []
         ret_l = []
@@ -116,9 +104,6 @@ def test_dataset():
     train_idxs = np.arange(0, len(dataset))
     #np.random.shuffle(train_idxs)
     num_batches = len(dataset) // 4
-
-    total_correct = 0
-    total_seen = 0
 
     for batch_idx in range(num_batches):
         start_idx = batch_idx * 4

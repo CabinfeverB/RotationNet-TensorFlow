@@ -34,7 +34,7 @@ parser.add_argument('--optimizer', default='adam',
 parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--case', type=str, default='1',
-                    help='viewpoint case (1 or 2 or 3)')
+                    help='viewpoint case 1 or 2 ')
 parser.add_argument('-no', '--number', type=str, default='0',
                     help='experiment number')
 parser.add_argument('-bitnot', '--bitnot', action='store_true',
@@ -44,7 +44,7 @@ parser.add_argument('-novggmean', '--novggmean', action='store_true',
 parser.add_argument('--gpu', type=int, default=0,
                     help='GPU to use [default: GPU 0]')
 parser.add_argument('--center', action='store_true', help = 'center crop')
-parser.add_argument('--max', type=float, default=0.970826, help='init max test '
+parser.add_argument('--max', type=float, default=0.9, help='init max test '
                                                                'acc')
 
 FLAGS = parser.parse_args()
@@ -57,31 +57,6 @@ if FLAGS.bitnot:
     config.BIT_NOT = True
 if FLAGS.novggmean:
     config.VGG_MEAN = False
-if FLAGS.case == '2':
-    config.ALL_VIEW = False
-    config.VIEW_NUM = 20
-    config.DATA_DIR = '/unsullied/sharefs/jiangyongbo/data/MVCNN' \
-                      '/modelnet40v2png/'
-elif FLAGS.case == '1':
-    config.VIEW_NUM = 12
-    config.DATA_DIR = '/unsullied/sharefs/jiangyongbo/data/MVCNN' \
-                      '/modelnet40v1png/'
-elif FLAGS.case == '3':
-    config.VIEW_NUM = 20
-    config.DATA_DIR = '/unsullied/sharefs/jiangyongbo/data/MVCNN' \
-                      '/modelnet40v3png/'
-elif FLAGS.case == '4':
-    config.VIEW_NUM = 20
-    config.DATA_DIR = '/unsullied/sharefs/jiangyongbo/data/MVCNN' \
-                      '/modelnet40v4png/'
-elif FLAGS.case == '5':
-    config.VIEW_NUM = 20
-    config.DATA_DIR = '/unsullied/sharefs/jiangyongbo/data/MVCNN' \
-                      '/modelnet40v2png_ori4'
-else:
-    config.VIEW_NUM = 20
-    config.DATA_DIR = '/unsullied/sharefs/jiangyongbo/data/MVCNN' \
-                      '/modelnet40v2png_ori4'
 
 BATCH_SIZE = config.BATCH_SIZE
 
@@ -118,7 +93,7 @@ def train():
         with tf.device('/gpu:' + str(GPU_INDEX)):
             [inptus_pl, label_pl] = model.get_inputs()
             is_training_pl = tf.placeholder(tf.bool, shape=())
-            if FLAGS.case == '3' or FLAGS.case == '4' or FLAGS.case == '6':
+            if FLAGS.case == '2':
                 loss = model.inference_aligned([inptus_pl, label_pl],
                                                is_training_pl)
             else:
@@ -132,8 +107,7 @@ def train():
             train_op = optimizer.minimize(loss)
 
             saver = tf.train.Saver()
-        #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
-        #sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
         tf_config = tf.ConfigProto()
         tf_config.gpu_options.allow_growth = True
         tf_config.allow_soft_placement = True
@@ -198,24 +172,24 @@ def train_one_epoch(sess, ops):
         _, end_points, _loss = sess.run(
             [ops['train_op'], ops['end_points'], ops['loss']],
             feed_dict=feed_dict)
-        if FLAGS.case != '3' and FLAGS.case != '4' and FLAGS.case != '6':
+        if FLAGS.case == '1':
             pred_label = model.get_max_pred(end_points['output_softmax'])
         else:
-            pred_label = model.get_max_pred_case3(end_points['output_softmax'])
+            pred_label = model.get_max_pred_aligned(end_points[
+                                                        'output_softmax'])
         correct = np.sum(pred_label == batch_gt)
         total_correct += correct
         total_seen += BATCH_SIZE
         print(pred_label, batch_gt, batch_idx)
 
     log_string('accuracy: %f' % (total_correct / float(total_seen)))
-    log_string('loss: %f' % (_loss))
 
 
 def eval_one_epoch(sess, ops):
     is_training = False
 
     test_idxs = np.arange(0, len(test_dataset))
-    np.random.shuffle(test_idxs)
+    #np.random.shuffle(test_idxs)
     num_batches = len(test_dataset) // BATCH_SIZE
 
     total_correct = 0
@@ -236,16 +210,16 @@ def eval_one_epoch(sess, ops):
         end_points, _loss = sess.run(
             [ops['end_points'], ops['loss']], feed_dict=feed_dict)
 
-        if FLAGS.case != '3' and FLAGS.case != '4' and FLAGS.case != '6':
+        if FLAGS.case == '1':
             pred_label = model.get_max_pred(end_points['output_softmax'])
         else:
-            pred_label = model.get_max_pred_case3(end_points['output_softmax'])
+            pred_label = model.get_max_pred_aligned(end_points['output_softmax'])
+        print(end_points['conv1'])
         correct = np.sum(pred_label == batch_gt)
         total_correct += correct
         total_seen += BATCH_SIZE
         print(pred_label, batch_gt, batch_idx)
     log_string('test accuracy: %f' % (total_correct / float(total_seen)))
-    log_string('test loss: %f' % (_loss))
     return total_correct / float(total_seen)
 
 
