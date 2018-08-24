@@ -54,4 +54,4 @@ If you want to fine-tune model
 | ModelNet40 | with viewpoint prediction | w/o viewpoint prediction |
 |:-:|:-:|:-:|
 | Reported | 97.37 | null |
-| Reproduced | 97.2024  | 96.72  |
+| Reproduced | 96.72  | 97.2024  |

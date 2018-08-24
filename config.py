@@ -11,7 +11,7 @@ class Config():
 
     HEIGHT = 224
     WIDTH = 224
-    VIEW_NUM = 12
+    VIEW_NUM = 20
     CLASS_NUM = 40
 
     STDDEV = 0.01
@@ -19,7 +19,6 @@ class Config():
     MOMENTUMU = 0.9
     BATCH_SIZE = 4
     MAX_EPOCH = 250
-    ALL_VIEW = True
 
     BIT_NOT = False
     VGG_MEAN = True
@@ -29,6 +28,5 @@ class Config():
 
     VGG_CHECKPOINT_PATH = os.path.join(BATCH_SIZE, 'vgg16model', 'vgg_16.ckpt')
     DATA_DIR = os.path.join(BATCH_SIZE, 'data', 'modelnet40v2png_ori4')
-
 
 config = Config()
