@@ -180,7 +180,6 @@ def train_one_epoch(sess, ops):
         correct = np.sum(pred_label == batch_gt)
         total_correct += correct
         total_seen += BATCH_SIZE
-        print(pred_label, batch_gt, batch_idx)
 
     log_string('accuracy: %f' % (total_correct / float(total_seen)))
 
@@ -189,7 +188,7 @@ def eval_one_epoch(sess, ops):
     is_training = False
 
     test_idxs = np.arange(0, len(test_dataset))
-    #np.random.shuffle(test_idxs)
+    np.random.shuffle(test_idxs)
     num_batches = len(test_dataset) // BATCH_SIZE
 
     total_correct = 0
@@ -214,11 +213,9 @@ def eval_one_epoch(sess, ops):
             pred_label = model.get_max_pred(end_points['output_softmax'])
         else:
             pred_label = model.get_max_pred_aligned(end_points['output_softmax'])
-        print(end_points['conv1'])
         correct = np.sum(pred_label == batch_gt)
         total_correct += correct
         total_seen += BATCH_SIZE
-        print(pred_label, batch_gt, batch_idx)
     log_string('test accuracy: %f' % (total_correct / float(total_seen)))
     return total_correct / float(total_seen)
 

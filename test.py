@@ -13,8 +13,6 @@ import importlib
 import os
 import sys
 
-import network as MODEL
-import dataset
 from config import config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,10 +25,28 @@ if not os.path.exists(MODEL_DIR):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--batch_size', type=int, default=32,
-                    help='Batch Size during training [default: 32]')
+parser.add_argument('--batch_size', type=int, default=4,
+                    help='Batch Size during training [default: 4]')
+parser.add_argument('--pretrained', type=str, default='-1',
+                    help='use pre-trained model')
+parser.add_argument('--case', type=str, default='1',
+                    help='viewpoint case 1 or 2 ')
+parser.add_argument('-bitnot', '--bitnot', action='store_true',
+                    help='cv2.bitwise_not')
+parser.add_argument('-novggmean', '--novggmean', action='store_true',
+                    help='no sub vgg_mean')
+parser.add_argument('--gpu', type=int, default=0,
+                    help='GPU to use [default: GPU 0]')
+parser.add_argument('--center', action='store_true', help = 'center crop')
 
 FLAGS = parser.parse_args()
+PRETRAINED = FLAGS.pretrained
+config.CENTER = FLAGS.center
+GPU_INDEX = FLAGS.gpu
+if FLAGS.bitnot:
+    config.BIT_NOT = True
+if FLAGS.novggmean:
+    config.VGG_MEAN = False
 
 BATCH_SIZE = config.BATCH_SIZE
 
@@ -42,28 +58,25 @@ LEARNING_RATE = config.LEARNING_RATE
 VGG_CHECKPOINT_PATH = config.VGG_CHECKPOINT_PATH
 MAX_EPOCH = config.MAX_EPOCH
 DATA_DIR = config.DATA_DIR
-MODEL_NAME = 'model2'
+MOMENTUM = config.MOMENTUMU
+import network as MODEL
+import dataset
 
-LOG_FOUT = open(os.path.join(LOG_DIR, 'log_train2.txt'), 'w')
-LOG_FOUT.write(str(FLAGS) + '\n')
-
-train_dataset = dataset.MultiViewDataset(DATA_DIR, 'train')
 test_dataset = dataset.MultiViewDataset(DATA_DIR, 'test')
-model = MODEL.Network()
+model = MODEL.Network(FLAGS.case)
 
 
-def log_string(out_str):
-    LOG_FOUT.write(out_str + '\n')
-    LOG_FOUT.flush()
-    print(out_str)
-
-
-def train():
+def test():
     with tf.Graph().as_default():
-        with tf.device('/gpu:0'):
+        with tf.device('/gpu:' + str(GPU_INDEX)):
             [inptus_pl, label_pl] = model.get_inputs()
             is_training_pl = tf.placeholder(tf.bool, shape=())
-            loss = model.inference([inptus_pl, label_pl], is_training_pl)
+            if FLAGS.case == '2':
+                loss = model.inference_aligned([inptus_pl, label_pl],
+                                               is_training_pl)
+            else:
+                loss = model.inference([inptus_pl, label_pl],
+                                       is_training_pl)
             train_end_points = model.get_tarin_collection()
             optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
             train_op = optimizer.minimize(loss)
@@ -77,10 +90,14 @@ def train():
 
         sess = tf.Session(config=tf_config)
 
-        # saver.restore(sess, os.path.join(MODEL_DIR, 'model1.ckpt'))
-        init = tf.global_variables_initializer()
-        sess.run(init)
-        #MODEL.load_vgg16_to_rotationnet(sess, VGG_CHECKPOINT_PATH)
+        if PRETRAINED != '-1':
+            saver.restore(sess, os.path.join(MODEL_DIR, 'model' + PRETRAINED +
+                                             '.ckpt'))
+            print('load pretrained model')
+        else:
+            init = tf.global_variables_initializer()
+            sess.run(init)
+            MODEL.load_vgg16_to_rotationnet(sess, VGG_CHECKPOINT_PATH)
 
         ops = {
             'inputs_pl': inptus_pl,
@@ -90,47 +107,7 @@ def train():
             'is_training_pl': is_training_pl,
             'train_op': train_op
         }
-        for epoch in range(MAX_EPOCH):
-            log_string('******* EPOCH %03d *******' % (epoch))
-            sys.stdout.flush()
-            train_one_epoch(sess, ops)
-
-
-def train_one_epoch(sess, ops):
-    is_training = True
-
-    train_idxs = np.arange(0, len(train_dataset))
-    num_batches = 32
-
-
-    for batch_idx in range(num_batches):
-        start_idx = batch_idx * BATCH_SIZE
-        end_idx = (batch_idx + 1) * BATCH_SIZE
-
-        batch_data, batch_label, batch_gt = train_dataset.get_batches(
-            train_idxs[start_idx:end_idx])
-        feed_dict = {
-            ops['inputs_pl']: batch_data,
-            ops['label_pl']: batch_label,
-            ops['is_training_pl']: is_training
-        }
-
-        _, end_points, _loss = sess.run(
-            [ops['train_op'], ops['end_points'], ops['loss']],
-            feed_dict=feed_dict)
-
-        #scores = end_points['net_output']
-        #scores = np.reshape(scores,[BATCH_SIZE,VIEW_NUM,VIEW_NUM,CLASS_NUM+1])
-        #print(scores)
-        #print('output', end_points['output'])
-        #print('output_softmax', end_points['output_softmax'])
-        #print('output_sub', end_points['output_sub'])
-        #print('scores', end_points['scores'])
-        #print('j_max', end_points['j_max'])
-        #print('target_', end_points['target_'])
-        pred_label = model.get_max_pred(end_points['output_softmax'])
-        print(pred_label, batch_gt)
-        log_string('loss: %f' % (_loss))
+        eval_one_epoch(sess, ops)
 
 
 def eval_one_epoch(sess, ops):
@@ -154,19 +131,20 @@ def eval_one_epoch(sess, ops):
             ops['label_pl']: batch_label,
             ops['is_training_pl']: is_training
         }
+
         end_points, _loss = sess.run(
             [ops['end_points'], ops['loss']], feed_dict=feed_dict)
 
-        pred_label = model.get_max_pred(end_points['net_output'])
+        if FLAGS.case == '1':
+            pred_label = model.get_max_pred(end_points['output_softmax'])
+        else:
+            pred_label = model.get_max_pred_aligned(end_points['output_softmax'])
         correct = np.sum(pred_label == batch_gt)
         total_correct += correct
         total_seen += BATCH_SIZE
-        print(pred_label, batch_gt, batch_idx)
-    log_string('test accuracy: %f' % (total_correct / float(total_seen)))
-    log_string('test loss: %f' % (_loss))
+    print('test accuracy: %f' % (total_correct / float(total_seen)))
     return total_correct / float(total_seen)
 
 
 if __name__ == '__main__':
-    train()
-    LOG_FOUT.close()
+    test()

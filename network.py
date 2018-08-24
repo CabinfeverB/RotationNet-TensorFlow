@@ -140,8 +140,6 @@ class Network(object):
                 net = slim.max_pool2d(net, [2, 2], scope='pool3')
                 net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],
                                   scope='conv4')
-
-                tf.add_to_collection('conv1', net)
                 net = slim.max_pool2d(net, [2, 2], scope='pool4')
                 net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],
                                   scope='conv5')
@@ -191,7 +189,6 @@ class Network(object):
     def get_tarin_collection(self):
         ret = dict()
         ret['output_softmax'] = tf.add_n(tf.get_collection('output_softmax'))
-        ret['conv1'] = tf.add_n(tf.get_collection('conv1'))
         return ret
 
     def get_test_colllection(self):
